@@ -252,6 +252,7 @@ async def place_order(side: str, stop_loss: float = None, take_profit: float = N
             "symbol": SYMBOL,
             "productType": PRODUCT_TYPE,
             "marginCoin": "USDT",
+            "marginMode": MARGIN_MODE,
             "side": "buy" if side == "long" else "sell",
             "tradeSide": "open",
             "orderType": "market",
