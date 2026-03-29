@@ -32,8 +32,8 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "blackcat2024")
 
 SYMBOL = "XRPUSDT"
 PRODUCT_TYPE = "USDT-FUTURES"
-LEVERAGE = 15
-RISK_PERCENT = 20  # % of balance per trade
+LEVERAGE = 16
+RISK_PERCENT = 50  # % of balance per trade
 MARGIN_MODE = "crossed"
 
 BITGET_BASE_URL = "https://api.bitget.com"
