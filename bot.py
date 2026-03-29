@@ -390,8 +390,17 @@ async def webhook(request: Request):
             logger.warning(f"Invalid secret: {secret}")
             raise HTTPException(status_code=401, detail="Invalid secret")
 
-        # Parse signal
+       # Parse signal
         side_raw = data.get("side", "").lower()
+        order_id = data.get("order_id", "")
+
+        # If SL/TP hit, just close position, don't open new trade
+        if "Exit" in order_id:
+            closed = await close_all_positions()
+            label = "🛑 SL HIT" if closed > 0 else "🎯 TP HIT"
+            await send_telegram(f"{label} <b>Position closed</b>\nOrder: {order_id}")
+            return {"status": "closed", "reason": order_id}
+
         if side_raw in ["buy", "long"]:
             side = "long"
         elif side_raw in ["sell", "short"]:
