@@ -223,6 +223,34 @@ async def close_position(side: str):
     except Exception as e:
         logger.error(f"Close position error: {e}")
 
+async def close_all_positions():
+    endpoint = "/api/v2/mix/position/single-position"
+    params = f"?symbol={SYMBOL}&productType={PRODUCT_TYPE}&marginCoin=USDT"
+    closed = 0
+    try:
+        data = await bitget_request("GET", endpoint + params)
+        if not data:
+            return 0
+        positions = data if isinstance(data, list) else [data]
+        for pos in positions:
+            pos_side = pos.get("holdSide", "")
+            pos_size = float(pos.get("total", 0))
+            if pos_size > 0:
+                close_body = {
+                    "symbol": SYMBOL,
+                    "productType": PRODUCT_TYPE,
+                    "marginCoin": "USDT",
+                    "marginMode": MARGIN_MODE,
+                    "side": "sell" if pos_side == "long" else "buy",
+                    "tradeSide": "close",
+                    "orderType": "market",
+                    "size": str(pos_size)
+                }
+                await bitget_request("POST", "/api/v2/mix/order/place-order", close_body)
+                closed += 1
+    except Exception as e:
+        logger.error(f"Close all error: {e}")
+    return closed
 
 async def place_order(side: str, stop_loss: float = None, take_profit: float = None):
     """Place a market order with optional SL/TP."""
