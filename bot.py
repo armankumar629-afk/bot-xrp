@@ -1,7 +1,7 @@
 """
 Black Cat Scalping Bot
 TradingView Webhook → Bitget Execution → Telegram Notifications
-Pair: XRP/USDT | Leverage: 15x | Risk: 10% per trade
+Pair: XRP/USDT | Leverage: 16x | Risk: 50% per trade
 """
 
 import os
@@ -32,8 +32,8 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "blackcat2024")
 
 SYMBOL = "XRPUSDT"
 PRODUCT_TYPE = "USDT-FUTURES"
-LEVERAGE = 16
-RISK_PERCENT = 50  # % of balance per trade
+LEVERAGE = 12
+RISK_PERCENT = 100  # % of balance per trade
 MARGIN_MODE = "crossed"
 
 BITGET_BASE_URL = "https://api.bitget.com"
@@ -208,6 +208,7 @@ async def close_position(side: str):
                     "symbol": SYMBOL,
                     "productType": PRODUCT_TYPE,
                     "marginCoin": "USDT",
+                    "marginMode": MARGIN_MODE,
                     "side": "sell" if pos_side == "long" else "buy",
                     "tradeSide": "close",
                     "orderType": "market",
@@ -223,7 +224,9 @@ async def close_position(side: str):
     except Exception as e:
         logger.error(f"Close position error: {e}")
 
+
 async def close_all_positions():
+    """Close ALL open positions."""
     endpoint = "/api/v2/mix/position/single-position"
     params = f"?symbol={SYMBOL}&productType={PRODUCT_TYPE}&marginCoin=USDT"
     closed = 0
@@ -252,6 +255,7 @@ async def close_all_positions():
         logger.error(f"Close all error: {e}")
     return closed
 
+
 async def place_order(side: str, stop_loss: float = None, take_profit: float = None):
     """Place a market order with optional SL/TP."""
     try:
@@ -262,7 +266,7 @@ async def place_order(side: str, stop_loss: float = None, take_profit: float = N
         if price <= 0:
             raise Exception("Invalid price")
 
-        # Calculate position size (10% of balance * leverage)
+        # Calculate position size
         margin = available * (RISK_PERCENT / 100)
         position_value = margin * LEVERAGE
         size = position_value / price
@@ -418,16 +422,8 @@ async def webhook(request: Request):
             logger.warning(f"Invalid secret: {secret}")
             raise HTTPException(status_code=401, detail="Invalid secret")
 
-       # Parse signal
+        # Parse signal
         side_raw = data.get("side", "").lower()
-        order_id = data.get("order_id", "")
-
-        # If SL/TP hit, just close position, don't open new trade
-        if "Exit" in order_id:
-            closed = await close_all_positions()
-            label = "🛑 SL HIT" if closed > 0 else "🎯 TP HIT"
-            await send_telegram(f"{label} <b>Position closed</b>\nOrder: {order_id}")
-            return {"status": "closed", "reason": order_id}
 
         if side_raw in ["buy", "long"]:
             side = "long"
@@ -464,9 +460,9 @@ async def webhook(request: Request):
 async def close_all():
     """Emergency close all positions."""
     try:
-        await close_position("none")
-        await send_telegram("🚨 <b>EMERGENCY CLOSE - All positions closed</b>")
-        return {"status": "closed"}
+        closed = await close_all_positions()
+        await send_telegram(f"🚨 <b>EMERGENCY CLOSE - {closed} position(s) closed</b>")
+        return {"status": "closed", "count": closed}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
